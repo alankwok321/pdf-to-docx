@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF to DOCX Converter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2ff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(57,73,171,.13);
+      padding: 48px 44px 40px;
+      width: 540px;
+      max-width: 96vw;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: #3949ab;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: #fff;
+      flex-shrink: 0;
+    }
+    .logo-text { display: flex; flex-direction: column; gap: 2px; }
+    h1 { font-size: 22px; color: #1a237e; font-weight: 700; line-height: 1.2; }
+    .subtitle { color: #7986cb; font-size: 13px; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #9fa8da;
+      border-radius: 14px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: background .18s, border-color .18s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      background: #e8eaf6;
+      border-color: #3949ab;
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+    }
+    .drop-icon { font-size: 38px; margin-bottom: 10px; line-height: 1; }
+    .drop-main { font-size: 15px; font-weight: 600; color: #3949ab; margin-bottom: 4px; }
+    .drop-sub { font-size: 12.5px; color: #9fa8da; }
+
+    /* File info */
+    .file-info {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: #e8eaf6;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-top: 16px;
+    }
+    .file-info.show { display: flex; }
+    .file-icon { font-size: 22px; flex-shrink: 0; }
+    .file-name { font-size: 13.5px; font-weight: 600; color: #1a237e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { font-size: 12px; color: #7986cb; }
+    .file-remove { margin-left: auto; cursor: pointer; color: #9fa8da; font-size: 18px; flex-shrink: 0; transition: color .15s; }
+    .file-remove:hover { color: #e53935; }
+
+    /* Convert button */
+    .btn-convert {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      background: #3949ab;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background .18s, opacity .18s;
+      letter-spacing: .3px;
+    }
+    .btn-convert:hover:not(:disabled) { background: #283593; }
+    .btn-convert:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* Progress */
+    .progress-wrap {
+      display: none;
+      margin-top: 18px;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-bar-bg {
+      height: 7px; border-radius: 99px;
+      background: #e8eaf6; overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, #7986cb, #3949ab);
+      width: 0%;
+      transition: width .4s ease;
+    }
+    .progress-bar.indeterminate {
+      width: 40%;
+      animation: slide 1.3s ease-in-out infinite alternate;
+    }
+    @keyframes slide {
+      from { transform: translateX(-60%); }
+      to   { transform: translateX(260%); }
+    }
+    .progress-label {
+      font-size: 12.5px; color: #7986cb; margin-top: 6px; text-align: center;
+    }
+
+    /* Result */
+    .result {
+      display: none;
+      margin-top: 18px;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .result.show { display: block; }
+    .result.success { background: #e8f5e9; }
+    .result.error   { background: #ffebee; }
+    .result-emoji { font-size: 28px; margin-bottom: 6px; }
+    .result-msg { font-size: 13.5px; font-weight: 600; }
+    .result.success .result-msg { color: #2e7d32; }
+    .result.error   .result-msg { color: #c62828; }
+    .result-sub { font-size: 12px; color: #888; margin-top: 4px; }
+
+    .btn-download {
+      margin-top: 12px;
+      padding: 10px 28px;
+      background: #43a047;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-download:hover { background: #2e7d32; }
+
+    .btn-reset {
+      margin-top: 8px;
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: none;
+      border: 1.5px solid #c5cae9;
+      border-radius: 9px;
+      font-size: 13.5px;
+      color: #7986cb;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-reset:hover { border-color: #3949ab; color: #3949ab; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">📄</div>
+    <div class="logo-text">
+      <h1>PDF to DOCX</h1>
+      <p class="subtitle">Convert PDF to Word while preserving fonts, tables &amp; images.</p>
+    </div>
+  </div>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".pdf" />
+    <div class="drop-icon">📂</div>
+    <div class="drop-main">Drop your PDF here</div>
+    <div class="drop-sub">or click to browse</div>
+  </div>
+
+  <div class="file-info" id="fileInfo">
+    <span class="file-icon">📑</span>
+    <div>
+      <div class="file-name" id="fileName"></div>
+      <div class="file-size" id="fileSize"></div>
+    </div>
+    <span class="file-remove" id="fileRemove" title="Remove">✕</span>
+  </div>
+
+  <button class="btn-convert" id="btnConvert" disabled>Convert to DOCX</button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar-bg"><div class="progress-bar indeterminate" id="progressBar"></div></div>
+    <div class="progress-label" id="progressLabel">Converting…</div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="result-emoji" id="resultEmoji"></div>
+    <div class="result-msg" id="resultMsg"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <button class="btn-download" id="btnDownload" style="display:none">⬇ Download DOCX</button>
+    <button class="btn-reset" id="btnReset">Convert another file</button>
+  </div>
+</div>
+
+<script>
+  const dropZone   = document.getElementById('dropZone');
+  const fileInput  = document.getElementById('fileInput');
+  const fileInfo   = document.getElementById('fileInfo');
+  const fileName   = document.getElementById('fileName');
+  const fileSize   = document.getElementById('fileSize');
+  const fileRemove = document.getElementById('fileRemove');
+  const btnConvert = document.getElementById('btnConvert');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressLabel = document.getElementById('progressLabel');
+  const result     = document.getElementById('result');
+  const resultEmoji = document.getElementById('resultEmoji');
+  const resultMsg  = document.getElementById('resultMsg');
+  const resultSub  = document.getElementById('resultSub');
+  const btnDownload = document.getElementById('btnDownload');
+  const btnReset   = document.getElementById('btnReset');
+
+  let currentFile = null;
+  let currentJobId = null;
+  let pollTimer = null;
+
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function setFile(file) {
+    if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Please select a PDF file.');
+      return;
+    }
+    currentFile = file;
+    fileName.textContent = file.name;
+    fileSize.textContent = fmtSize(file.size);
+    fileInfo.classList.add('show');
+    btnConvert.disabled = false;
+    result.classList.remove('show');
+  }
+
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+  fileRemove.addEventListener('click', reset);
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    setFile(e.dataTransfer.files[0]);
+  });
+
+  btnConvert.addEventListener('click', async () => {
+    if (!currentFile) return;
+
+    btnConvert.disabled = true;
+    progressWrap.classList.add('show');
+    progressLabel.textContent = 'Uploading…';
+    result.classList.remove('show');
+
+    const fd = new FormData();
+    fd.append('file', currentFile);
+
+    let jobId;
+    try {
+      const res = await fetch('/convert', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      jobId = data.job_id;
+      currentJobId = jobId;
+    } catch (e) {
+      showError(e.message);
+      return;
+    }
+
+    progressLabel.textContent = 'Converting…';
+    pollTimer = setInterval(() => poll(jobId), 1200);
+  });
+
+  async function poll(jobId) {
+    try {
+      const res = await fetch(`/status/${jobId}`);
+      const data = await res.json();
+      if (data.status === 'done') {
+        clearInterval(pollTimer);
+        showSuccess(jobId);
+      } else if (data.status === 'error') {
+        clearInterval(pollTimer);
+        showError(data.error || 'Conversion failed');
+      }
+    } catch (e) { /* keep polling */ }
+  }
+
+  function showSuccess(jobId) {
+    progressWrap.classList.remove('show');
+    result.className = 'result show success';
+    resultEmoji.textContent = '✅';
+    resultMsg.textContent = 'Conversion complete!';
+    resultSub.textContent = currentFile ? currentFile.name.replace(/\.pdf$/i, '.docx') : '';
+    btnDownload.style.display = '';
+    btnDownload.onclick = () => {
+      const name = encodeURIComponent(currentFile ? currentFile.name : 'document.pdf');
+      window.location = `/download/${jobId}?name=${name}`;
+    };
+  }
+
+  function showError(msg) {
+    progressWrap.classList.remove('show');
+    btnConvert.disabled = false;
+    result.className = 'result show error';
+    resultEmoji.textContent = '❌';
+    resultMsg.textContent = 'Conversion failed';
+    resultSub.textContent = msg;
+    btnDownload.style.display = 'none';
+  }
+
+  function reset() {
+    clearInterval(pollTimer);
+    currentFile = null;
+    currentJobId = null;
+    fileInput.value = '';
+    fileInfo.classList.remove('show');
+    btnConvert.disabled = true;
+    progressWrap.classList.remove('show');
+    result.classList.remove('show');
+  }
+
+  btnReset.addEventListener('click', reset);
+</script>
+</body>
+</html>
